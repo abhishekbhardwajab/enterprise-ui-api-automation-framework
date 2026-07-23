@@ -1,0 +1,12 @@
+target/
+reports/logs/
+reports/screenshots/
+*.class
+*.log
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# Generated credential CSVs contain sensitive data and must never be tracked.
+**/generated-credentials*.csv

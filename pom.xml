@@ -1,0 +1,314 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.automation.qe</groupId>
+    <artifactId>enterprise-ui-api-automation-framework</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+
+    <name>Enterprise UI + API Automation Framework</name>
+    <description>
+        Selenium 4 + Cucumber/JUnit4 BDD execution, page-object/locator/model/context
+        layering, BrowserStack remote execution, Rest Assured API testing, and a
+        Jenkins CI pipeline with failed-item rerun.
+    </description>
+
+    <properties>
+        <maven.compiler.source>11</maven.compiler.source>
+        <maven.compiler.target>11</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Versions -->
+        <selenium.version>4.21.0</selenium.version>
+        <webdrivermanager.version>5.9.2</webdrivermanager.version>
+        <cucumber.version>7.18.0</cucumber.version>
+        <junit4.version>4.13.2</junit4.version>
+        <testng.version>7.10.2</testng.version>
+        <restassured.version>5.4.0</restassured.version>
+        <commonscsv.version>1.11.0</commonscsv.version>
+        <jakartamail.version>2.0.1</jakartamail.version>
+        <totp.version>1.7.1</totp.version>
+        <slf4j.version>2.0.13</slf4j.version>
+        <log4j.version>2.23.1</log4j.version>
+        <jackson.version>2.17.1</jackson.version>
+        <cucumberparallel.version>5.0.0</cucumberparallel.version>
+        <buildhelper.version>3.6.0</buildhelper.version>
+
+        <!-- Runner selected by Surefire's <includes> below. Override on the CLI,
+             e.g. -DrunnerClass=CucumberRerunTest or -DrunnerClass=CucumberDryRunTest -->
+        <runnerClass>CucumberRunnerTest</runnerClass>
+
+        <!-- Picked up by Driver: "local" or "remote" (BrowserStack) -->
+        <execution>local</execution>
+    </properties>
+
+    <dependencies>
+        <!-- Selenium.
+             NOTE: in the reference architecture, browser creation/access/waits/JS-exec
+             and local-vs-remote driver selection are supplied transitively by a shared
+             internal web-automation-core module. This repo is self-contained (no
+             private artifact registry), so that responsibility is reimplemented locally
+             under framework/driver instead of being pulled in as a dependency. -->
+        <dependency>
+            <groupId>org.seleniumhq.selenium</groupId>
+            <artifactId>selenium-java</artifactId>
+            <version>${selenium.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.github.bonigarcia</groupId>
+            <artifactId>webdrivermanager</artifactId>
+            <version>${webdrivermanager.version}</version>
+        </dependency>
+
+        <!-- Cucumber, launched through JUnit 4 runner classes -->
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-java</artifactId>
+            <version>${cucumber.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.cucumber</groupId>
+            <artifactId>cucumber-junit</artifactId>
+            <version>${cucumber.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>${junit4.version}</version>
+        </dependency>
+
+        <!-- TestNG - used only by the API-testing layer (src/test/.../apiTests),
+             which sits outside the UI framework described in the technical overview.
+             Run via: mvn test -Papi -->
+        <dependency>
+            <groupId>org.testng</groupId>
+            <artifactId>testng</artifactId>
+            <version>${testng.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>rest-assured</artifactId>
+            <version>${restassured.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>io.rest-assured</groupId>
+            <artifactId>json-schema-validator</artifactId>
+            <version>${restassured.version}</version>
+        </dependency>
+
+        <!-- Data and utility support -->
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>${commonscsv.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>jakarta.mail</artifactId>
+            <version>${jakartamail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>dev.samstevens.totp</groupId>
+            <artifactId>totp</artifactId>
+            <version>${totp.version}</version>
+        </dependency>
+
+        <!-- Pinned explicitly so it wins Maven's dependency mediation over the older
+             transitive jackson-core pulled in by json-schema-validator. log4j-core's
+             optional Jackson-integration classes (scanned incidentally by Cucumber's
+             classpath scan) reference com.fasterxml.jackson.core.JacksonException,
+             which only exists from Jackson 2.14+ - an older transitive version causes
+             a NoClassDefFoundError during that scan. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>${jackson.version}</version>
+        </dependency>
+
+        <!-- Logging. Not called out in the technical overview (its dependency model
+             leaves most supporting libraries to the shared core module), but retained
+             here as a practical stand-in since this repo has no such dependency to lean on. -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-core</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.logging.log4j</groupId>
+            <artifactId>log4j-slf4j2-impl</artifactId>
+            <version>${log4j.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.13.0</version>
+                <configuration>
+                    <release>11</release>
+                </configuration>
+            </plugin>
+
+            <!-- Generates one JUnit4 Cucumber runner class per feature file at build
+                 time, so the "parallel"/"parallelUnlimited" profiles below can run
+                 features concurrently as independent JUnit test classes rather than
+                 all through a single aggregate runner. -->
+            <plugin>
+                <groupId>com.github.temyers</groupId>
+                <artifactId>cucumber-jvm-parallel-plugin</artifactId>
+                <version>${cucumberparallel.version}</version>
+                <executions>
+                    <execution>
+                        <id>generate-parallel-runners</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>generateRunners</goal>
+                        </goals>
+                        <configuration>
+                            <glue>
+                                <package>com.automation.tests.stepDefinitions</package>
+                            </glue>
+                            <featuresDirectory>${project.basedir}/src/test/resources/features</featuresDirectory>
+                            <outputDirectory>${project.build.directory}/generated-test-sources/cucumber</outputDirectory>
+                            <packageName>com.automation.tests.runners.generated</packageName>
+                            <namingScheme>feature-title</namingScheme>
+                            <tags>
+                                <tag>not @wip</tag>
+                                <tag>not @requires-account</tag>
+                            </tags>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>build-helper-maven-plugin</artifactId>
+                <version>${buildhelper.version}</version>
+                <executions>
+                    <execution>
+                        <id>add-generated-runners</id>
+                        <phase>generate-test-sources</phase>
+                        <goals>
+                            <goal>add-test-source</goal>
+                        </goals>
+                        <configuration>
+                            <sources>
+                                <source>${project.build.directory}/generated-test-sources/cucumber</source>
+                            </sources>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Default execution: single JUnit4 Cucumber runner, selected via the
+                 runnerClass property. See profiles below for remote/rerun/parallel
+                 variants. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.2.5</version>
+                <configuration>
+                    <includes>
+                        <include>**/${runnerClass}.java</include>
+                    </includes>
+                    <systemPropertyVariables>
+                        <execution>${execution}</execution>
+                    </systemPropertyVariables>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+    <profiles>
+        <!-- mvn test -Premote : points Driver at BrowserStack instead of a local browser -->
+        <profile>
+            <id>remote</id>
+            <properties>
+                <execution>remote</execution>
+            </properties>
+        </profile>
+
+        <!-- mvn test -PfailedTests : reruns only scenarios written to target/rerun.txt
+             by the previous run's "rerun" plugin - this is this framework's retry
+             mechanism, applied at the run level rather than per-scenario. -->
+        <profile>
+            <id>failedTests</id>
+            <properties>
+                <runnerClass>CucumberRerunTest</runnerClass>
+            </properties>
+        </profile>
+
+        <!-- mvn test -Pparallel : bounded 2-thread parallel execution across the
+             per-feature runners generated by cucumber-jvm-parallel-plugin -->
+        <profile>
+            <id>parallel</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/generated/*.java</include>
+                            </includes>
+                            <parallel>classes</parallel>
+                            <threadCount>2</threadCount>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- mvn test -PparallelUnlimited : same as above with no thread ceiling -->
+        <profile>
+            <id>parallelUnlimited</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>**/generated/*.java</include>
+                            </includes>
+                            <parallel>classes</parallel>
+                            <useUnlimitedThreads>true</useUnlimitedThreads>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+
+        <!-- mvn test -Papi : runs the TestNG-based API suite instead of any UI runner -->
+        <profile>
+            <id>api</id>
+            <build>
+                <plugins>
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-surefire-plugin</artifactId>
+                        <configuration>
+                            <includes>
+                                <include>NONE</include>
+                            </includes>
+                            <suiteXmlFiles>
+                                <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
+                            </suiteXmlFiles>
+                        </configuration>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
+    </profiles>
+</project>
