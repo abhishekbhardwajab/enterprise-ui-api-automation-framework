@@ -12,7 +12,7 @@ import org.openqa.selenium.By;
 public interface LoginLocators {
 
     // Login form
-    By LOGIN_EMAIL_FIELD = By.cssSelector("input[data-qa='login-email']");
+    By LOGIN_EMAIL_FIELD = By.cssSelector("input[data-qa='login-email1']");
     By LOGIN_PASSWORD_FIELD = By.cssSelector("input[data-qa='login-password']");
     By LOGIN_BUTTON = By.cssSelector("button[data-qa='login-button']");
     By LOGIN_ERROR_MESSAGE = By.xpath("//p[contains(text(),'incorrect')]");

@@ -1,0 +1,22 @@
+services:
+  tests:
+    depends_on:
+      browser:
+        condition: service_healthy
+    environment:
+      SELENIUM_REMOTE_URL: http://browser:4444/wd/hub
+      HEADLESS: "false"
+
+  browser:
+    image: selenium/standalone-chromium:4.46.0-20260707
+    shm_size: 2gb
+    ports:
+      - "4444:4444"
+      - "7900:7900"
+    environment:
+      SE_VNC_NO_PASSWORD: "true"
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/bin/check-grid.sh --host 0.0.0.0 --port 4444"]
+      interval: 5s
+      timeout: 30s
+      retries: 10

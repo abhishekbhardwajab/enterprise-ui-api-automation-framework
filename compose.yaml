@@ -1,0 +1,9 @@
+services:
+  tests:
+    build:
+      context: .
+    image: enterprise-ui-api-automation-framework:local
+    shm_size: 2gb
+    volumes:
+      - ./target:/workspace/target
+      - ./reports:/workspace/reports
