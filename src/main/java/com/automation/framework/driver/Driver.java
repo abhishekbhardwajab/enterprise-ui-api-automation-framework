@@ -36,6 +36,8 @@ import java.util.Set;
  * Local-vs-remote selection is driven by the "execution" system property
  * (local | remote): "remote" routes sessions through BrowserStack using
  * credentials injected via environment variables, never hardcoded here.
+ * SELENIUM_REMOTE_URL takes local execution through a Selenium Grid instead,
+ * which is used by the visible Docker/noVNC workflow.
  */
 public final class Driver {
 
@@ -53,13 +55,28 @@ public final class Driver {
     }
 
     public static void init() {
-        boolean remote = "remote".equalsIgnoreCase(System.getProperty("execution", ConfigReader.get("execution", "local")));
-        boolean headless = ConfigReader.getBoolean("headless", true);
+        boolean browserStack = "remote".equalsIgnoreCase(
+                System.getProperty("execution", ConfigReader.get("execution", "local")));
+        String seleniumRemoteUrl = firstNonBlank(
+                System.getProperty("selenium.remote.url"),
+                System.getenv("SELENIUM_REMOTE_URL"));
+        boolean headless = Boolean.parseBoolean(firstNonBlank(
+                System.getProperty("headless"),
+                System.getenv("HEADLESS"),
+                ConfigReader.get("headless", "true")));
+        String mode = browserStack ? "browserstack" : seleniumRemoteUrl != null ? "grid" : "local";
 
-        log.info("Initialising driver on thread [{}] (remote={}, headless={})",
-                Thread.currentThread().getId(), remote, headless);
+        log.info("Initialising driver on thread [{}] (mode={}, headless={})",
+                Thread.currentThread().getId(), mode, headless);
 
-        WebDriver driver = remote ? createRemoteDriver() : createLocalDriver(headless);
+        WebDriver driver;
+        if (browserStack) {
+            driver = createRemoteDriver();
+        } else if (seleniumRemoteUrl != null) {
+            driver = createGridDriver(seleniumRemoteUrl, headless);
+        } else {
+            driver = createLocalDriver(headless);
+        }
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(ConfigReader.getInt("implicit.wait.seconds", 5)));
         driver.manage().window().maximize();
 
@@ -67,13 +84,53 @@ public final class Driver {
     }
 
     private static WebDriver createLocalDriver(boolean headless) {
-        WebDriverManager.chromedriver().setup();
+        String configuredDriverPath = firstNonBlank(
+                System.getProperty("webdriver.chrome.driver"),
+                System.getenv("CHROMEDRIVER_PATH"));
+        if (configuredDriverPath == null) {
+            WebDriverManager.chromedriver().setup();
+        } else {
+            System.setProperty("webdriver.chrome.driver", configuredDriverPath);
+            log.info("Using configured ChromeDriver at {}", configuredDriverPath);
+        }
+
         ChromeOptions options = new ChromeOptions();
+        String configuredChromeBinary = firstNonBlank(
+                System.getProperty("chrome.binary"),
+                System.getenv("CHROME_BINARY"));
+        if (configuredChromeBinary != null) {
+            options.setBinary(configuredChromeBinary);
+            log.info("Using configured Chrome binary at {}", configuredChromeBinary);
+        }
         if (headless) {
             options.addArguments("--headless=new");
         }
         options.addArguments("--no-sandbox", "--disable-dev-shm-usage", "--window-size=1920,1080");
         return new org.openqa.selenium.chrome.ChromeDriver(options);
+    }
+
+    private static WebDriver createGridDriver(String gridUrl, boolean headless) {
+        ChromeOptions options = new ChromeOptions();
+        if (headless) {
+            options.addArguments("--headless=new");
+        }
+        options.addArguments("--window-size=1920,1080");
+
+        try {
+            log.info("Connecting to Selenium Grid at {}", gridUrl);
+            return new RemoteWebDriver(new URL(gridUrl), options);
+        } catch (MalformedURLException e) {
+            throw new IllegalStateException("Invalid Selenium Grid URL: " + gridUrl, e);
+        }
+    }
+
+    private static String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     /**

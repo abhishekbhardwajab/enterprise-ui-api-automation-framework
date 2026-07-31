@@ -139,12 +139,11 @@ mvn -DskipTests package             # compile and package without browser execut
 mvn test -Papi                      # API-testing layer (TestNG/Rest Assured)
 ```
 
-`parallel`/`parallelUnlimited` run against per-feature runner classes generated at
-build time by `cucumber-jvm-parallel-plugin` (bound to `generate-test-sources`),
-rather than the single aggregate runner - each generated class is an independent
-JUnit4 test, which is what lets Surefire's `parallel=classes` distribute them
-across threads safely (the `Driver` ThreadLocal keeps each thread's browser session
-isolated).
+`parallel`/`parallelUnlimited` use Cucumber's JUnit4 integration with Surefire's
+`parallel=methods` mode. The JUnit4 runner exposes each feature as a test method,
+so Surefire distributes feature files across threads without generated source
+files. Scenarios within one feature stay on the same thread; the `Driver`
+ThreadLocal keeps browser sessions isolated across concurrently running features.
 
 ## Runtime Configuration
 
@@ -253,6 +252,83 @@ mvn test -Pparallel                                      # 2-thread parallel
 mvn test -PparallelUnlimited                              # unlimited-thread parallel
 mvn test -Papi                                           # API-testing layer
 mvn -DskipTests package                                   # compile/package only
+```
+
+## Docker
+
+The Docker image contains Java 11, Maven, Chromium, and the matching
+Chromedriver package. It runs the default headless UI suite when no command is
+provided. Generated Maven and Cucumber output is written to `target/`, while
+logs and failure screenshots are written to `reports/`.
+
+Build and run the default UI suite with Compose (recommended because it mounts
+both artifact directories back to the host):
+
+```bash
+docker compose build
+docker compose run --rm tests
+```
+
+The image entrypoint is `mvn -B`, so the existing Maven execution modes remain
+available by replacing the default `test` argument:
+
+```bash
+docker compose run --rm tests test -DrunnerClass=CucumberSmokeRunnerTest
+docker compose run --rm tests test -Papi
+docker compose run --rm tests test -Pparallel
+docker compose run --rm tests test -PfailedTests
+docker compose run --rm tests test -Dcucumber.filter.tags=@requires-account \
+  -Dvalid.username=user@example.com -Dvalid.password=secret
+```
+
+BrowserStack execution is also supported. Inject credentials at runtime rather
+than baking them into the image:
+
+```bash
+docker compose run --rm \
+  -e BROWSERSTACK_USERNAME \
+  -e BROWSERSTACK_ACCESS_KEY \
+  tests test -Premote
+```
+
+Without Compose, the equivalent commands are:
+
+```bash
+docker build -t enterprise-ui-api-automation-framework .
+docker run --rm --shm-size=2g \
+  -v "$PWD/target:/workspace/target" \
+  -v "$PWD/reports:/workspace/reports" \
+  enterprise-ui-api-automation-framework
+```
+
+The container sets `CHROME_BINARY` and `CHROMEDRIVER_PATH` to the packaged
+executables. Outside Docker these are optional; when absent, the framework keeps
+using WebDriverManager as before.
+
+### Watch UI execution live
+
+The visible Compose override starts an official Selenium Chromium container and
+routes the tests to it. Its desktop is available through noVNC in a web browser,
+while the normal Compose workflow remains headless.
+
+Start the visible browser and open
+`http://localhost:7900/?autoconnect=1&resize=scale`:
+
+```bash
+docker compose -f compose.yaml -f compose.visible.yaml up -d browser
+```
+
+Then run a feature from another terminal:
+
+```bash
+docker compose -f compose.yaml -f compose.visible.yaml run --rm tests \
+  test -Dcucumber.features=src/test/resources/features/login.feature
+```
+
+Stop the visible browser when finished:
+
+```bash
+docker compose -f compose.yaml -f compose.visible.yaml down
 ```
 
 ## Extension Conventions
